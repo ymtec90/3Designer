@@ -28,9 +28,6 @@ class CADApp(QMainWindow):
         
         self.init_ui()
         self.apply_dark_theme()
-        
-        # Carrega um modelo padrão ao abrir para não iniciar vazio
-        self.create_demo_model()
 
     def init_ui(self):
         # Widget principal e layout horizontal dividido
@@ -403,6 +400,7 @@ def main():
     app = QApplication(sys.argv)
     window = CADApp()
     window.show()
+    window.create_demo_model() # Gera a peça apenas com o contexto OpenGL já ativo
     sys.exit(app.exec())
 
 if __name__ == "__main__":
