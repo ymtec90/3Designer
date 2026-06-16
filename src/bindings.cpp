@@ -48,6 +48,7 @@ PYBIND11_MODULE(designer_engine, m) {
         .def("SetBooleanOp", &Feature::SetBooleanOp)
         .def("SetParent", &Feature::SetParent)
         .def("GetParent", &Feature::GetParent)
+        .def("GetResultShape", &Feature::GetResultShape)
         .def("Evaluate", &Feature::Evaluate);
 
     // Derived Features
