@@ -257,7 +257,7 @@ class CADApp(QMainWindow):
         self.list_features.clear()
         for idx, feat in enumerate(self.proxy.get_features()):
             type_str = str(feat.GetType()).split('.')[-1]
-            status = "OK" if not feat.GetResultShape().IsNull() else "PENDENTE"
+            status = "OK" if feat.HasResultShape() else "PENDENTE"
             self.list_features.addItem(f"[{idx+1}] {feat.GetName()} ({type_str}) - {status}")
 
     def on_feature_selected(self):

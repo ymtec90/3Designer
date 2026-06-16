@@ -40,6 +40,7 @@ public:
     BooleanOpType GetBooleanOp() const { return m_booleanOp; }
 
     TopoDS_Shape GetResultShape() const { return m_resultShape; }
+    bool HasResultShape() const;
     
     // Virtual method that subclasses implement to build geometry
     virtual bool Evaluate() = 0;

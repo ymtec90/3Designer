@@ -25,6 +25,10 @@
 #include <iostream>
 #include <stdexcept>
 
+bool Feature::HasResultShape() const {
+    return !m_resultShape.IsNull();
+}
+
 // ==========================================
 // SketchFeature Implementation
 // ==========================================
