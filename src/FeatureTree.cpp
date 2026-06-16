@@ -1,37 +1,47 @@
 #include "FeatureTree.hpp"
 #include <iostream>
+#include <stdexcept>
+#include <BRepMesh_IncrementalMesh.hxx>
+#include <StlAPI_Writer.hxx>
 
 void FeatureTree::AddFeature(std::shared_ptr<Feature> feature) {
     m_features.push_back(feature);
 }
 
 bool FeatureTree::Rebuild() {
+    // Guarda o estado anterior para garantir rollback atômico em caso de falha geométrica ou exceção
     TopoDS_Shape originalActiveShape = m_activeShape;
     try {
         m_activeShape.Nullify();
         for (auto& feature : m_features) {
+            // Garante que cada feature do histórico tenha seu pai atualizado no fluxo de modelagem paramétrica
+            // O pai de uma feature de sólido é sempre o sólido resultante anterior
+            if (feature->GetType() == FeatureType::Extrude || feature->GetType() == FeatureType::Revolve) {
+                auto parent = GetLastSolidFeature();
+                // O parent de um nó não pode ser ele mesmo nas iterações
+                if (parent && parent != feature) {
+                    feature->SetParent(parent);
+                }
+            }
+
+            // Executa a avaliação paramétrica
             if (!feature->Evaluate()) {
-                std::cerr << "Rebuild failed at feature: " << feature->GetName() << std::endl;
+                std::cerr << "Error: Rebuild falhou na Feature '" << feature->GetName() << "'." << std::endl;
                 m_activeShape = originalActiveShape;
                 return false;
             }
             
-            // Active shape is the result of the last 3D solid feature
+            // O sólido ativo representa o acumulado geométrico da última operação de sólido
             if (feature->GetType() == FeatureType::Extrude || feature->GetType() == FeatureType::Revolve) {
                 m_activeShape = feature->GetResultShape();
             }
         }
         return true;
     } catch (const std::exception& e) {
-        std::cerr << "Validation or Geometry Exception during Rebuild: " << e.what() << std::endl;
+        // Captura exceções críticas (como BRepCheck_Analyzer disparando falhas topológicas)
+        std::cerr << "Exception capturada no Rebuild: " << e.what() << std::endl;
         m_activeShape = originalActiveShape;
         return false;
-    }
-}
-
-void FeatureTree::RemoveLastFeature() {
-    if (!m_features.empty()) {
-        m_features.pop_back();
     }
 }
 
@@ -45,10 +55,13 @@ std::shared_ptr<Feature> FeatureTree::FindFeature(const std::string& name) const
 }
 
 std::shared_ptr<Feature> FeatureTree::GetLastSolidFeature() const {
-    // Traverse backwards to find the latest Extrude or Revolve feature
+    // Varre no sentido reverso para obter o sólido ativo anterior da pilha histórica
     for (auto it = m_features.rbegin(); it != m_features.rend(); ++it) {
         if ((*it)->GetType() == FeatureType::Extrude || (*it)->GetType() == FeatureType::Revolve) {
-            return *it;
+            // Retorna se o recurso já possuir geometria validada
+            if (!(*it)->GetResultShape().IsNull()) {
+                return *it;
+            }
         }
     }
     return nullptr;
@@ -133,3 +146,34 @@ void FeatureTree::Clear() {
     m_features.clear();
     m_activeShape.Nullify();
 }
+
+void FeatureTree::RemoveLastFeature() {
+    if (!m_features.empty()) {
+        m_features.pop_back();
+    }
+}
+
+bool FeatureTree::ExportToSTL(const std::string& filename, double deflection) const {
+    if (m_activeShape.IsNull()) {
+        std::cerr << "Error: Nao ha solido ativo para exportar." << std::endl;
+        return false;
+    }
+
+    try {
+        // Triangulação incremental da malha (de deflection=0.1mm padrão para discretização)
+        BRepMesh_IncrementalMesh mesher(m_activeShape, deflection);
+        if (!mesher.IsDone()) {
+            std::cerr << "Error: Triangulacao (BRepMesh) falhou." << std::endl;
+            return false;
+        }
+
+        // Grava a malha triangulada em arquivo STL
+        StlAPI_Writer writer;
+        writer.Write(m_activeShape, filename.c_str());
+        return true;
+    } catch (const std::exception& e) {
+        std::cerr << "Exception durante exportacao STL: " << e.what() << std::endl;
+        return false;
+    }
+}
+

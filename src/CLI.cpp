@@ -485,14 +485,12 @@ void CLI::HandleExport(const std::map<std::string, std::string>& flags) {
         }
     } 
     else if (format == "stl") {
-        std::cout << "Triangulating shape for STL export..." << std::endl;
-        // Triangulate shape with deflection of 0.1mm (critical step for STL export in OCCT)
-        BRepMesh_IncrementalMesh mesher(activeShape, 0.1);
-        
-        std::cout << "Exporting to STL format: " << path << " ..." << std::endl;
-        StlAPI_Writer writer;
-        writer.Write(activeShape, path.c_str());
-        std::cout << "STL export successful." << std::endl;
+        std::cout << "Triangulating shape and exporting to STL: " << path << " ..." << std::endl;
+        if (m_featureTree.ExportToSTL(path, 0.1)) {
+            std::cout << "STL export successful." << std::endl;
+        } else {
+            std::cerr << "Error: STL export failed." << std::endl;
+        }
     } 
     else {
         std::cerr << "Error: Unsupported export format '" << format << "'. Use 'stl' or 'brep'." << std::endl;

@@ -37,6 +37,9 @@ public:
     // Removes the last added feature from the history tree (rollback)
     void RemoveLastFeature();
 
+    // Triangulates the active solid shape using BRepMesh_IncrementalMesh and exports to STL
+    bool ExportToSTL(const std::string& filename, double deflection = 0.1) const;
+
 private:
     std::vector<std::shared_ptr<Feature>> m_features;
     TopoDS_Shape m_activeShape;
