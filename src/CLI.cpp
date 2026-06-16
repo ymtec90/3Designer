@@ -307,12 +307,25 @@ void CLI::HandleExtrude(const std::map<std::string, std::string>& flags) {
         opType = BooleanOpType::Add; // Default: Union if active shape exists
     }
 
-    if (flags.find("--cut") != flags.end() || flags.find("--subtract") != flags.end()) {
-        opType = BooleanOpType::Subtract;
-    } else if (flags.find("--add") != flags.end() || flags.find("--union") != flags.end()) {
-        opType = BooleanOpType::Add;
-    } else if (flags.find("--new") != flags.end()) {
-        opType = BooleanOpType::None;
+    if (flags.find("--op") != flags.end()) {
+        std::string opVal = flags.at("--op");
+        std::transform(opVal.begin(), opVal.end(), opVal.begin(), ::tolower);
+        if (opVal == "add" || opVal == "union" || opVal == "fuse") {
+            opType = BooleanOpType::Add;
+        } else if (opVal == "subtract" || opVal == "cut" || opVal == "sub") {
+            opType = BooleanOpType::Subtract;
+        } else if (opVal == "none" || opVal == "new") {
+            opType = BooleanOpType::None;
+        }
+    } else {
+        // Fallback to standalone flags
+        if (flags.find("--cut") != flags.end() || flags.find("--subtract") != flags.end()) {
+            opType = BooleanOpType::Subtract;
+        } else if (flags.find("--add") != flags.end() || flags.find("--union") != flags.end()) {
+            opType = BooleanOpType::Add;
+        } else if (flags.find("--new") != flags.end()) {
+            opType = BooleanOpType::None;
+        }
     }
 
     std::string name = "Extrude" + std::to_string(m_extrudeCounter++);
@@ -373,12 +386,25 @@ void CLI::HandleRevolve(const std::map<std::string, std::string>& flags) {
         opType = BooleanOpType::Add; // Default: Union if active shape exists
     }
 
-    if (flags.find("--cut") != flags.end() || flags.find("--subtract") != flags.end()) {
-        opType = BooleanOpType::Subtract;
-    } else if (flags.find("--add") != flags.end() || flags.find("--union") != flags.end()) {
-        opType = BooleanOpType::Add;
-    } else if (flags.find("--new") != flags.end()) {
-        opType = BooleanOpType::None;
+    if (flags.find("--op") != flags.end()) {
+        std::string opVal = flags.at("--op");
+        std::transform(opVal.begin(), opVal.end(), opVal.begin(), ::tolower);
+        if (opVal == "add" || opVal == "union" || opVal == "fuse") {
+            opType = BooleanOpType::Add;
+        } else if (opVal == "subtract" || opVal == "cut" || opVal == "sub") {
+            opType = BooleanOpType::Subtract;
+        } else if (opVal == "none" || opVal == "new") {
+            opType = BooleanOpType::None;
+        }
+    } else {
+        // Fallback to standalone flags
+        if (flags.find("--cut") != flags.end() || flags.find("--subtract") != flags.end()) {
+            opType = BooleanOpType::Subtract;
+        } else if (flags.find("--add") != flags.end() || flags.find("--union") != flags.end()) {
+            opType = BooleanOpType::Add;
+        } else if (flags.find("--new") != flags.end()) {
+            opType = BooleanOpType::None;
+        }
     }
 
     std::string name = "Revolve" + std::to_string(m_revolveCounter++);
