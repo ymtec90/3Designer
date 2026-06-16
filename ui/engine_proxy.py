@@ -161,3 +161,15 @@ class EngineProxy:
 
         self.tree.AddFeature(chamfer)
         return self.rebuild()
+
+    def update_fillet_radius(self, name: str, new_radius: float) -> bool:
+        """Busca uma FilletFeature pelo nome, altera seu raio e reconstrói."""
+        feat = self.tree.FindFeature(name)
+        if not feat:
+            raise ValueError(f"Feature '{name}' não encontrada.")
+        
+        if not hasattr(feat, "SetRadius"):
+            raise ValueError(f"A feature '{name}' não é uma FilletFeature editável.")
+            
+        feat.SetRadius(new_radius)
+        return self.rebuild()

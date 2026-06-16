@@ -111,6 +111,29 @@ class CADApp(QMainWindow):
         tree_layout.addWidget(self.list_features)
         
         sidebar_layout.addWidget(tree_group)
+
+        # Grupo: Propriedades da Feature Selecionada (Edição)
+        self.prop_group = QGroupBox("Propriedades / Edição")
+        self.prop_group.setVisible(False)
+        prop_layout = QFormLayout(self.prop_group)
+        
+        self.lbl_prop_name = QLabel("")
+        prop_layout.addRow("Nome:", self.lbl_prop_name)
+        
+        self.spin_prop_radius = QDoubleSpinBox()
+        self.spin_prop_radius.setMinimum(0.05)
+        self.spin_prop_radius.setMaximum(50.0)
+        self.spin_prop_radius.setSingleStep(0.5)
+        prop_layout.addRow("Raio:", self.spin_prop_radius)
+        
+        self.btn_prop_update = QPushButton("Atualizar")
+        self.btn_prop_update.clicked.connect(self.update_selected_fillet_radius)
+        prop_layout.addRow(self.btn_prop_update)
+        
+        sidebar_layout.addWidget(self.prop_group)
+        
+        # Conecta seleção para habilitar edição
+        self.list_features.itemSelectionChanged.connect(self.on_feature_selected)
         
         # Exportação
         self.btn_export = QPushButton("Exportar como STL...")
@@ -232,6 +255,42 @@ class CADApp(QMainWindow):
             type_str = str(feat.GetType()).split('.')[-1]
             status = "OK" if not feat.GetResultShape().IsNull() else "PENDENTE"
             self.list_features.addItem(f"[{idx+1}] {feat.GetName()} ({type_str}) - {status}")
+
+    def on_feature_selected(self):
+        selected_items = self.list_features.selectedItems()
+        if not selected_items:
+            self.prop_group.setVisible(False)
+            return
+            
+        row = self.list_features.currentRow()
+        features = self.proxy.get_features()
+        if row < 0 or row >= len(features):
+            self.prop_group.setVisible(False)
+            return
+            
+        feat = features[row]
+        # Verifica se é uma FilletFeature examinando se possui o método SetRadius exposto
+        if hasattr(feat, "SetRadius") and hasattr(feat, "GetRadius"):
+            self.lbl_prop_name.setText(feat.GetName())
+            self.spin_prop_radius.setValue(feat.GetRadius())
+            self.prop_group.setVisible(True)
+        else:
+            self.prop_group.setVisible(False)
+
+    def update_selected_fillet_radius(self):
+        name = self.lbl_prop_name.text()
+        new_radius = self.spin_prop_radius.value()
+        
+        try:
+            if self.proxy.update_fillet_radius(name, new_radius):
+                self.trigger_rebuild()
+                QMessageBox.information(self, "Sucesso", f"Raio do Fillet '{name}' atualizado para {new_radius} com sucesso.")
+            else:
+                QMessageBox.warning(self, "Falha de Validação", "A alteração falhou no kernel geométrico.")
+                self.trigger_rebuild()
+        except Exception as e:
+            QMessageBox.critical(self, "Erro na Atualização", f"Ocorreu um erro ao atualizar o Fillet:\n\n{e}")
+            self.trigger_rebuild()
 
     def trigger_rebuild(self):
         """Dispara a reconstrução (rebuild) no motor e atualiza a malha 3D."""
