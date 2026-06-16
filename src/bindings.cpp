@@ -70,7 +70,8 @@ PYBIND11_MODULE(designer_engine, m) {
     py::class_<FilletFeature, Feature, std::shared_ptr<FilletFeature>>(m, "FilletFeature")
         .def(py::init<const std::string&, int, double>())
         .def("GetEdgeIndex", &FilletFeature::GetEdgeIndex)
-        .def("GetRadius", &FilletFeature::GetRadius);
+        .def("GetRadius", &FilletFeature::GetRadius)
+        .def("SetRadius", &FilletFeature::SetRadius);
 
     py::class_<ChamferFeature, Feature, std::shared_ptr<ChamferFeature>>(m, "ChamferFeature")
         .def(py::init<const std::string&, int, double>())

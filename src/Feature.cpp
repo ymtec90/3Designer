@@ -379,6 +379,13 @@ bool FilletFeature::Evaluate() {
     }
 }
 
+void FilletFeature::SetRadius(double new_radius) {
+    if (new_radius != m_radius) {
+        m_radius = new_radius;
+        m_resultShape.Nullify();
+    }
+}
+
 // ==========================================
 // ChamferFeature Implementation
 // ==========================================

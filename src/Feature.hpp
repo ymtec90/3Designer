@@ -135,6 +135,7 @@ public:
     
     int GetEdgeIndex() const { return m_edgeIndex; }
     double GetRadius() const { return m_radius; }
+    void SetRadius(double new_radius);
 
 private:
     int m_edgeIndex;
