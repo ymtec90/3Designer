@@ -1,0 +1,51 @@
+# Prerequisites
+*.d
+
+# Compiled Object files
+*.slo
+*.lo
+*.o
+*.obj
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Compiled Dynamic libraries and Python modules
+*.so
+*.dylib
+*.dll
+*.pyd
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+*.lib
+
+# Executables
+3designer
+
+# CMake Build Directories
+build/
+bin/
+lib/
+
+# External dependencies cloned locally (like pybind11)
+external/
+
+# Python caching
+__pycache__/
+*.pyc
+*.pyo
+
+# CAD Output & Test Artifact files
+*.stl
+*.brep
+
+# Editor & IDE specific files
+.vscode/
+.idea/
+*.swp
+*~
+.DS_Store
