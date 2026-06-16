@@ -1,128 +1,105 @@
-# 3Designer: Parametric Solid Modeling CLI
+# 3Designer - Parametric Solid Modeling CAD
 
-A lightweight, feature-based parametric solid modeling command-line interface (CLI) built on top of the **OpenCASCADE Technology (OCCT)** geometric kernel in C++.
+O **3Designer** é um modelador CAD paramétrico robusto projetado para construção e modificação de sólidos 3D. Ele integra um motor geométrico de alto desempenho desenvolvido em C++ (utilizando o kernel **OpenCASCADE**) com uma interface visual dinâmica e interativa em Python utilizando **PySide6** e **PyQtGraph**.
 
-## Core Features
-*   **Work Plane Mapping**: Local 2D sketching plane $(U, V)$ coordinates dynamically mapped to 3D space $(X, Y, Z)$ using `gp_Ax3` and `gp_Pln`.
-*   **Planar Face Extraction**: Ability to select any planar face on a 3D solid, retrieve its normal and origin, and construct a new `WorkPlane` aligned to that face (accounting for topological face orientations).
-*   **Feature-Based History Tree**: Rebuilds the solid representation from the root when parameters change, replicating the regeneration loop used in professional CAD systems (e.g. FreeCAD, SolidWorks).
-*   **Boolean Operations**: Features can be integrated using Union (`BRepAlgoAPI_Fuse`) or Cut (`BRepAlgoAPI_Cut`).
-*   **Mesh & Export**: Dynamic triangulation of solids using `BRepMesh_IncrementalMesh` and exporting to **BREP** or **STL** (via `StlAPI_Writer`).
+A comunicação direta entre a camada de negócio em C++ e a camada visual em Python é mediada de forma ultrarrápida por bindings gerados com **pybind11**.
 
 ---
 
-## Architecture Design
+## Funcionalidades
 
-The project uses a structured, decoupled layout:
-
-```
-3Designer/
-├── CMakeLists.txt         # CMake build configuration
-├── README.md              # Documentation
-├── include/
-│   ├── CLI.hpp            # CLI engine & command flags parser
-│   ├── Feature.hpp        # Geometry features (Sketch, Extrude, Revolve)
-│   ├── FeatureTree.hpp    # State history tree & rebuild loop
-│   └── WorkPlane.hpp      # Local-to-global 2D/3D plane transformation
-└── src/
-    ├── CLI.cpp
-    ├── Feature.cpp
-    ├── FeatureTree.cpp
-    ├── main.cpp           # Application entrypoint
-    └── WorkPlane.cpp
-```
+- **Modelagem Paramétrica Baseada em Esboços (Sketches)**: Criação de perfis 2D (círculos e polígonos fechados) em planos de trabalho globais ou locais extraídos diretamente de faces de sólidos existentes.
+- **Operações de Extrusão e Revolução**: Geração de sólidos 3D por meio de extrusões e revoluções com suporte a operações booleanas (`Fuse/Union` e `Cut/Subtract`).
+- **Modificações de Arestas**: Suporte a arredondamento de quinas (**Fillet**) e chanfros (**Chamfer**) com indexação baseada em arestas.
+- **Validação Topológica e Transações Atômicas**: Análise topológica rígida via `BRepCheck_Analyzer` após qualquer operação. Falhas geométricas geram exceções e ativam rollbacks automáticos na árvore de histórico para manter o modelo consistente.
+- **Exportação de Malha 3D**: Discretização e exportação de sólidos para o formato **STL** e **BREP**.
+- **Interface Gráfica Completa**: Visualizador 3D interativo com sombreadores OpenGL, painel de histórico paramétrico, modificações de aresta em tempo real e desfazer/refazer integrado.
+- **Interface de Linha de Comando (CLI)**: Console CAD interativo integrado ao executável C++.
 
 ---
 
-## Getting Started
+## Pré-requisitos
 
-### 1. Install Dependencies
-On Debian, Ubuntu, or derivative distributions, install the OpenCASCADE development libraries and CMake build chain:
+### Sistema Operacional
+- Linux (Debian, Ubuntu e derivados).
 
+### Dependências de Sistema
+Para compilar e executar o projeto, você precisará do compilador C++17, CMake, OpenCASCADE e das bibliotecas de desenvolvimento do Python e X11.
+
+No Debian/Ubuntu, instale usando o comando:
 ```bash
 sudo apt update
-sudo apt install -y \
-    cmake \
-    build-essential \
-    libocct-modeling-algorithms-dev \
-    libocct-modeling-data-dev \
-    libocct-foundation-dev \
-    libocct-data-exchange-dev \
-    libocct-draw-dev \
-    occt-misc
-```
-
-### 2. Compile the Project
-From the workspace root, run:
-
-```bash
-# Create and enter the build directory
-mkdir build && cd build
-
-# Configure the build system
-cmake ..
-
-# Compile the executable
-make
-```
-
-### 3. Run the CLI
-Execute the generated binary:
-
-```bash
-./3designer
+sudo apt install -y build-essential cmake libocct-ocaf-dev libocct-data-exchange-dev \
+                    libtbb-dev python3-dev libxkbcommon0 libxkbcommon-x11-0 libxcb-cursor0 \
+                    libxcb-icccm4 libxcb-keysyms1 libxcb-xinerama0
 ```
 
 ---
 
-## Command Reference Tutorial
+## Como Instalar/Compilar
 
-Run the executable and type these commands in sequence to model a parametric plate with a hollow cylinder cut out of its center.
+### 1. Clonar e Compilar o Projeto (C++ & Python Bindings)
+Clone o repositório e compile o projeto usando CMake. O submódulo `pybind11` é configurado automaticamente.
 
-### Step 1: Draw a 2D Rectangle Profile on the Default XY Plane
-Create a 2D polygon profile (20x20 unit square) centered on $(0,0)$ in local plane coordinates:
-```text
-sketch --shape polygon --points "-10,-10 10,-10 10,10 -10,10"
+```bash
+# Clone o repositório
+git clone https://github.com/seu-usuario/3Designer.git
+cd 3Designer
+
+# Inicialize o pybind11 (caso não tenha clonado as dependências externas)
+# Se a pasta external/pybind11 estiver vazia, execute:
+# git clone --depth 1 https://github.com/pybind/pybind11.git external/pybind11
+
+# Configure e compile o projeto
+cmake -B build -S .
+cmake --build build --parallel
+```
+Isso gerará:
+- O executável da CLI: `build/3designer`
+- O módulo Python compartilhado: `build/designer_engine.cpython-...so`
+
+---
+
+## Como Executar
+
+### 1. Criando e Configurando o Ambiente Virtual Python
+É altamente recomendado utilizar um ambiente virtual (`venv`) para executar a interface gráfica em Python:
+
+```bash
+# Crie o ambiente virtual local
+python3 -m venv venv
+
+# Ative o ambiente virtual
+source venv/bin/activate
+
+# Instale os pacotes necessários
+pip install -r requirements.txt
 ```
 
-### Step 2: Extrude the Sketch into a 3D Base Plate
-Extrude the rectangular profile by a depth of 5 units to form a solid plate:
-```text
-extrude --depth 5 --new
+### 2. Executar a Interface Gráfica (GUI)
+Com o ambiente virtual ativo e o motor C++ compilado no diretório `build/`, execute o aplicativo gráfico:
+
+```bash
+python3 ui/app.py
+```
+Isso abrirá a janela 3D contendo o visualizador e a barra de ferramentas lateral.
+
+### 3. Executar o Console de Linha de Comando (CLI)
+Você também pode interagir com o motor diretamente pela linha de comando executando o executável C++:
+
+```bash
+./build/3designer
 ```
 
-### Step 3: Find the Face Index of the Top Surface
-List the faces of the newly created plate to find the index of the face pointing upwards along the Z-axis (normal: `0,0,1`):
-```text
-faces
-```
-*Note: This command will display each face index, surface type, origin, and normal vector.*
+### 4. Executar Scripts de Teste Automatizados
+O diretório `scripts/` contém exemplos de design paramétricos. Para rodar um teste da ponte:
 
-### Step 4: Sketch a Circle on the Top Planar Face
-Assuming **Face #6** is the top face (Normal: `0,0,1`), sketch a circle with radius 4 centered on $(0,0)$ directly on that face:
-```text
-sketch --on-face 6 --shape circle --radius 4 --center "0,0"
+```bash
+python3 scripts/test_bridge.py
 ```
 
-### Step 5: Subtract the Cylinder from the Base Plate
-Cut a circular hole through the plate by extruding the circle profile:
-```text
-extrude --depth 5 --cut
-```
+---
 
-### Step 6: Verify the Feature History Tree
-Display the genealogy of the active shape to review your operations:
-```text
-tree
-```
+## Licença
 
-### Step 7: Export the Final Geometry
-Export the resulting solid body to STL (which runs mesh triangulation) and BREP:
-```text
-export --file model.stl
-export --file model.brep
-```
-To quit the CLI, type:
-```text
-exit
-```
+Este projeto é distribuído sob a Licença MIT. Veja o arquivo `LICENSE` para mais detalhes.
