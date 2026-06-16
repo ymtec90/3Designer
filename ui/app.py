@@ -1,7 +1,7 @@
 import os
 os.environ['QT_QPA_PLATFORM'] = 'xcb'
 import sys
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QTimer
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QPushButton, QLabel, QGroupBox, QFormLayout, QSpinBox, QDoubleSpinBox,
@@ -400,7 +400,7 @@ def main():
     app = QApplication(sys.argv)
     window = CADApp()
     window.show()
-    window.create_demo_model() # Gera a peça apenas com o contexto OpenGL já ativo
+    QTimer.singleShot(100, window.create_demo_model)
     sys.exit(app.exec())
 
 if __name__ == "__main__":
