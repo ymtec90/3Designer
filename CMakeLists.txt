@@ -35,7 +35,7 @@ target_link_libraries(3designer PRIVATE
     TKTopAlgo
     TKPrim
     TKBO
-    TKSTL
+    TKDESTL
     TKMesh
     TKXSBase
 )
