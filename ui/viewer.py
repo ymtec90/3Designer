@@ -1,6 +1,7 @@
 import os
 import sys
 import numpy as np
+import pyqtgraph as pg
 import pyqtgraph.opengl as gl
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QVector3D
@@ -220,7 +221,7 @@ class ModelViewer(gl.GLViewWidget):
             
             # Centraliza a câmera no centróide aproximado do modelo carregado
             center = vertices.mean(axis=0)
-            self.setCameraPosition(pos=center)
+            self.setCameraPosition(pos=pg.Vector(float(center[0]), float(center[1]), float(center[2])))
             
         except Exception as e:
             print(f"Erro inesperado ao carregar/visualizar STL: {e}")
