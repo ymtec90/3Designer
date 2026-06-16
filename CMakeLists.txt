@@ -13,22 +13,23 @@ if(OpenCASCADE_LIBRARY_DIR)
     link_directories(${OpenCASCADE_LIBRARY_DIR})
 endif()
 
-# Define common engine sources
-set(COMMON_SOURCES
-    src/Feature.cpp
-    src/FeatureTree.cpp
-    src/WorkPlane.cpp
-)
+# Use GLOB to find all C++ source files
+file(GLOB SOURCES "src/*.cpp")
+
+# Filter sources for the CLI executable (3designer) - remove bindings.cpp
+set(CLI_SOURCES ${SOURCES})
+list(REMOVE_ITEM CLI_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/bindings.cpp")
+
+# Filter sources for the python module (designer_engine) - remove main.cpp and CLI.cpp
+set(ENGINE_SOURCES ${SOURCES})
+list(REMOVE_ITEM ENGINE_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp")
+list(REMOVE_ITEM ENGINE_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/CLI.cpp")
 
 # Define the CLI executable target
-add_executable(3designer
-    src/main.cpp
-    src/CLI.cpp
-    ${COMMON_SOURCES}
-)
+add_executable(3designer ${CLI_SOURCES})
 
 target_include_directories(3designer PRIVATE
-    include
+    src
     ${OpenCASCADE_INCLUDE_DIR}
 )
 
@@ -55,13 +56,10 @@ set_target_properties(3designer PROPERTIES
 # Define the pybind11 python module target
 add_subdirectory(external/pybind11)
 
-pybind11_add_module(designer_engine
-    src/bindings.cpp
-    ${COMMON_SOURCES}
-)
+pybind11_add_module(designer_engine ${ENGINE_SOURCES})
 
 target_include_directories(designer_engine PRIVATE
-    include
+    src
     ${OpenCASCADE_INCLUDE_DIR}
 )
 

@@ -2,7 +2,7 @@ import sys
 import os
 
 # Adiciona o diretório build ao path para que o Python localize a biblioteca designer_engine.so
-build_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'build')
+build_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'build')
 sys.path.append(build_path)
 
 try:
