@@ -1,4 +1,5 @@
 #include "FeatureTree.hpp"
+#include <Standard_Failure.hxx>
 #include <iostream>
 #include <stdexcept>
 #include <BRepMesh_IncrementalMesh.hxx>
@@ -16,7 +17,10 @@ bool FeatureTree::Rebuild() {
         for (auto& feature : m_features) {
             // Garante que cada feature do histórico tenha seu pai atualizado no fluxo de modelagem paramétrica
             // O pai de uma feature de sólido é sempre o sólido resultante anterior
-            if (feature->GetType() == FeatureType::Extrude || feature->GetType() == FeatureType::Revolve) {
+            if (feature->GetType() == FeatureType::Extrude || 
+                feature->GetType() == FeatureType::Revolve ||
+                feature->GetType() == FeatureType::Fillet ||
+                feature->GetType() == FeatureType::Chamfer) {
                 auto parent = GetLastSolidFeature();
                 // O parent de um nó não pode ser ele mesmo nas iterações
                 if (parent && parent != feature) {
@@ -32,11 +36,18 @@ bool FeatureTree::Rebuild() {
             }
             
             // O sólido ativo representa o acumulado geométrico da última operação de sólido
-            if (feature->GetType() == FeatureType::Extrude || feature->GetType() == FeatureType::Revolve) {
+            if (feature->GetType() == FeatureType::Extrude || 
+                feature->GetType() == FeatureType::Revolve ||
+                feature->GetType() == FeatureType::Fillet ||
+                feature->GetType() == FeatureType::Chamfer) {
                 m_activeShape = feature->GetResultShape();
             }
         }
         return true;
+    } catch (const Standard_Failure& sf) {
+        std::cerr << "OpenCASCADE Exception capturada no Rebuild: " << sf.GetMessageString() << std::endl;
+        m_activeShape = originalActiveShape;
+        return false;
     } catch (const std::exception& e) {
         // Captura exceções críticas (como BRepCheck_Analyzer disparando falhas topológicas)
         std::cerr << "Exception capturada no Rebuild: " << e.what() << std::endl;
@@ -57,7 +68,10 @@ std::shared_ptr<Feature> FeatureTree::FindFeature(const std::string& name) const
 std::shared_ptr<Feature> FeatureTree::GetLastSolidFeature() const {
     // Varre no sentido reverso para obter o sólido ativo anterior da pilha histórica
     for (auto it = m_features.rbegin(); it != m_features.rend(); ++it) {
-        if ((*it)->GetType() == FeatureType::Extrude || (*it)->GetType() == FeatureType::Revolve) {
+        if ((*it)->GetType() == FeatureType::Extrude || 
+            (*it)->GetType() == FeatureType::Revolve ||
+            (*it)->GetType() == FeatureType::Fillet ||
+            (*it)->GetType() == FeatureType::Chamfer) {
             // Retorna se o recurso já possuir geometria validada
             if (!(*it)->GetResultShape().IsNull()) {
                 return *it;
@@ -114,6 +128,24 @@ void FeatureTree::PrintTree() const {
                         std::cout << ", Sketch: " << revolve->GetSketch()->GetName();
                     }
                     std::cout << ")";
+                }
+                break;
+            }
+            case FeatureType::Fillet: {
+                std::cout << "Fillet";
+                auto fillet = std::dynamic_pointer_cast<FilletFeature>(feat);
+                if (fillet) {
+                    std::cout << " (Edge: " << fillet->GetEdgeIndex()
+                              << ", Radius: " << fillet->GetRadius() << ")";
+                }
+                break;
+            }
+            case FeatureType::Chamfer: {
+                std::cout << "Chamfer";
+                auto chamfer = std::dynamic_pointer_cast<ChamferFeature>(feat);
+                if (chamfer) {
+                    std::cout << " (Edge: " << chamfer->GetEdgeIndex()
+                              << ", Dist: " << chamfer->GetDistance() << ")";
                 }
                 break;
             }

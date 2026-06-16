@@ -38,6 +38,7 @@ target_link_libraries(3designer PRIVATE
     TKDESTL
     TKMesh
     TKXSBase
+    TKFillet
 )
 
 # Configure target RPATH properties for dynamic library loading at runtime

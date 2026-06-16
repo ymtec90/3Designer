@@ -11,7 +11,9 @@
 enum class FeatureType {
     Sketch,
     Extrude,
-    Revolve
+    Revolve,
+    Fillet,
+    Chamfer
 };
 
 enum class BooleanOpType {
@@ -122,3 +124,36 @@ private:
 
     bool ApplyBoolean(const TopoDS_Shape& solid);
 };
+
+// A FilletFeature rounds specified edges of its parent solid shape
+class FilletFeature : public Feature {
+public:
+    FilletFeature(const std::string& name, int edgeIndex, double radius)
+        : Feature(name, FeatureType::Fillet), m_edgeIndex(edgeIndex), m_radius(radius) {}
+
+    bool Evaluate() override;
+    
+    int GetEdgeIndex() const { return m_edgeIndex; }
+    double GetRadius() const { return m_radius; }
+
+private:
+    int m_edgeIndex;
+    double m_radius;
+};
+
+// A ChamferFeature cuts a flat bevel on specified edges of its parent solid shape
+class ChamferFeature : public Feature {
+public:
+    ChamferFeature(const std::string& name, int edgeIndex, double distance)
+        : Feature(name, FeatureType::Chamfer), m_edgeIndex(edgeIndex), m_distance(distance) {}
+
+    bool Evaluate() override;
+
+    int GetEdgeIndex() const { return m_edgeIndex; }
+    double GetDistance() const { return m_distance; }
+
+private:
+    int m_edgeIndex;
+    double m_distance;
+};
+

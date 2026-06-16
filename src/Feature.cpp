@@ -1,4 +1,5 @@
 #include "Feature.hpp"
+#include <Standard_Failure.hxx>
 
 #include <BRepBuilderAPI_MakeEdge.hxx>
 #include <BRepBuilderAPI_MakeWire.hxx>
@@ -10,6 +11,13 @@
 #include <BRepAlgoAPI_Cut.hxx>
 #include <BRepCheck_Analyzer.hxx>
 #include <Precision.hxx>
+#include <BRepFilletAPI_MakeFillet.hxx>
+#include <BRepFilletAPI_MakeChamfer.hxx>
+#include <TopoDS_Edge.hxx>
+#include <TopExp.hxx>
+#include <TopExp_Explorer.hxx>
+#include <TopoDS.hxx>
+#include <TopoDS_Face.hxx>
 
 #include <gp_Circ.hxx>
 #include <gp_Vec.hxx>
@@ -298,5 +306,147 @@ bool RevolveFeature::ApplyBoolean(const TopoDS_Shape& solid) {
 
     m_resultShape = tempShape;
     return true;
+}
+
+// ==========================================
+// FilletFeature Implementation
+// ==========================================
+
+bool FilletFeature::Evaluate() {
+    if (!m_parent) {
+        std::cerr << "Error in Fillet '" << m_name << "': Parent solid shape is null." << std::endl;
+        return false;
+    }
+
+    TopoDS_Shape parentShape = m_parent->GetResultShape();
+    if (parentShape.IsNull()) {
+        std::cerr << "Error in Fillet '" << m_name << "': Parent geometry is empty." << std::endl;
+        return false;
+    }
+
+    // Explores edges to find the one matching m_edgeIndex
+    TopExp_Explorer explorer(parentShape, TopAbs_EDGE);
+    int current = 1;
+    TopoDS_Edge targetEdge;
+    bool found = false;
+
+    while (explorer.More()) {
+        if (current == m_edgeIndex) {
+            targetEdge = TopoDS::Edge(explorer.Current());
+            found = true;
+            break;
+        }
+        current++;
+        explorer.Next();
+    }
+
+    if (!found || targetEdge.IsNull()) {
+        std::cerr << "Error in Fillet '" << m_name << "': Edge index " << m_edgeIndex << " not found in shape." << std::endl;
+        return false;
+    }
+
+    if (m_radius <= Precision::Confusion()) {
+        std::cerr << "Error in Fillet '" << m_name << "': Fillet radius must be greater than Confusion tolerance." << std::endl;
+        return false;
+    }
+
+    try {
+        BRepFilletAPI_MakeFillet filletMaker(parentShape);
+        filletMaker.Add(m_radius, targetEdge);
+        filletMaker.Build();
+
+        if (!filletMaker.IsDone()) {
+            std::cerr << "Error in Fillet '" << m_name << "': BRepFilletAPI_MakeFillet construction failed." << std::endl;
+            return false;
+        }
+
+        TopoDS_Shape result = filletMaker.Shape();
+
+        // Validamos a topologia da peça arredondada resultante para evitar quebras geométricas
+        BRepCheck_Analyzer analyzer(result);
+        if (!analyzer.IsValid()) {
+            throw std::runtime_error("Validation Error: O arredondamento (Fillet) resultou em uma topologia invalida (raio muito grande?).");
+        }
+
+        m_resultShape = result;
+        return true;
+    } catch (const Standard_Failure& sf) {
+        std::cerr << "OpenCASCADE Exception em Fillet '" << m_name << "': " << sf.GetMessageString() << std::endl;
+        throw std::runtime_error(std::string("OpenCASCADE Error: ") + sf.GetMessageString());
+    } catch (const std::exception& e) {
+        std::cerr << "Exception em Fillet '" << m_name << "': " << e.what() << std::endl;
+        throw; // Repassa a exceção para que a FeatureTree possa capturar e efetuar rollback
+    }
+}
+
+// ==========================================
+// ChamferFeature Implementation
+// ==========================================
+
+bool ChamferFeature::Evaluate() {
+    if (!m_parent) {
+        std::cerr << "Error in Chamfer '" << m_name << "': Parent solid shape is null." << std::endl;
+        return false;
+    }
+
+    TopoDS_Shape parentShape = m_parent->GetResultShape();
+    if (parentShape.IsNull()) {
+        std::cerr << "Error in Chamfer '" << m_name << "': Parent geometry is empty." << std::endl;
+        return false;
+    }
+
+    // Explores edges to find the one matching m_edgeIndex
+    TopExp_Explorer explorer(parentShape, TopAbs_EDGE);
+    int current = 1;
+    TopoDS_Edge targetEdge;
+    bool found = false;
+
+    while (explorer.More()) {
+        if (current == m_edgeIndex) {
+            targetEdge = TopoDS::Edge(explorer.Current());
+            found = true;
+            break;
+        }
+        current++;
+        explorer.Next();
+    }
+
+    if (!found || targetEdge.IsNull()) {
+        std::cerr << "Error in Chamfer '" << m_name << "': Edge index " << m_edgeIndex << " not found in shape." << std::endl;
+        return false;
+    }
+
+    if (m_distance <= Precision::Confusion()) {
+        std::cerr << "Error in Chamfer '" << m_name << "': Chamfer distance must be greater than Confusion tolerance." << std::endl;
+        return false;
+    }
+
+    try {
+        BRepFilletAPI_MakeChamfer chamferMaker(parentShape);
+        chamferMaker.Add(m_distance, targetEdge);
+        chamferMaker.Build();
+
+        if (!chamferMaker.IsDone()) {
+            std::cerr << "Error in Chamfer '" << m_name << "': BRepFilletAPI_MakeChamfer construction failed." << std::endl;
+            return false;
+        }
+
+        TopoDS_Shape result = chamferMaker.Shape();
+
+        // Validação topológica
+        BRepCheck_Analyzer analyzer(result);
+        if (!analyzer.IsValid()) {
+            throw std::runtime_error("Validation Error: O chanfro (Chamfer) resultou em uma topologia invalida (distancia muito grande?).");
+        }
+
+        m_resultShape = result;
+        return true;
+    } catch (const Standard_Failure& sf) {
+        std::cerr << "OpenCASCADE Exception em Chamfer '" << m_name << "': " << sf.GetMessageString() << std::endl;
+        throw std::runtime_error(std::string("OpenCASCADE Error: ") + sf.GetMessageString());
+    } catch (const std::exception& e) {
+        std::cerr << "Exception em Chamfer '" << m_name << "': " << e.what() << std::endl;
+        throw;
+    }
 }
 

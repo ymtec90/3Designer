@@ -13,7 +13,7 @@
 #include <GeomAbs_SurfaceType.hxx>
 
 CLI::CLI() 
-    : m_sketchCounter(1), m_extrudeCounter(1), m_revolveCounter(1) {
+    : m_sketchCounter(1), m_extrudeCounter(1), m_revolveCounter(1), m_filletCounter(1), m_chamferCounter(1) {
     m_currentSketch = nullptr;
 }
 
@@ -67,6 +67,14 @@ void CLI::PrintHelp() const {
     std::cout << "    --angle <degrees>         Rotation angle in degrees." << std::endl;
     std::cout << "    --axis <x|y|z>            Local workplane axis of revolution (default: y)." << std::endl;
     std::cout << "    --add | --cut | --new     Boolean operation type." << std::endl;
+    std::cout << std::endl;
+    std::cout << "  fillet [options]            Round edges of the active solid." << std::endl;
+    std::cout << "    --edge <index>            Edge index (1-based)." << std::endl;
+    std::cout << "    --radius <val>            Fillet radius." << std::endl;
+    std::cout << std::endl;
+    std::cout << "  chamfer [options]           Bevel edges of the active solid." << std::endl;
+    std::cout << "    --edge <index>            Edge index (1-based)." << std::endl;
+    std::cout << "    --dist <val>              Chamfer distance." << std::endl;
     std::cout << std::endl;
     std::cout << "  faces                       List faces of the current active solid." << std::endl;
     std::cout << "  tree                        Show parametric history feature tree." << std::endl;
@@ -151,6 +159,10 @@ void CLI::ParseCommand(const std::string& line) {
         HandleExtrude(flags);
     } else if (cmd == "revolve") {
         HandleRevolve(flags);
+    } else if (cmd == "fillet") {
+        HandleFillet(flags);
+    } else if (cmd == "chamfer") {
+        HandleChamfer(flags);
     } else if (cmd == "export") {
         HandleExport(flags);
     } else {
@@ -520,5 +532,133 @@ void CLI::HandleExport(const std::map<std::string, std::string>& flags) {
     } 
     else {
         std::cerr << "Error: Unsupported export format '" << format << "'. Use 'stl' or 'brep'." << std::endl;
+    }
+}
+
+void CLI::HandleFillet(const std::map<std::string, std::string>& flags) {
+    TopoDS_Shape activeShape = m_featureTree.GetActiveShape();
+    if (activeShape.IsNull()) {
+        std::cerr << "Error: No active solid shape to apply fillet." << std::endl;
+        return;
+    }
+
+    if (flags.find("--edge") == flags.end()) {
+        std::cerr << "Error: Flag --edge <index> is required." << std::endl;
+        return;
+    }
+
+    if (flags.find("--radius") == flags.end()) {
+        std::cerr << "Error: Flag --radius <val> is required." << std::endl;
+        return;
+    }
+
+    int edgeIndex = 0;
+    try {
+        edgeIndex = std::stoi(flags.at("--edge"));
+    } catch (...) {
+        std::cerr << "Error: Invalid edge index '" << flags.at("--edge") << "'." << std::endl;
+        return;
+    }
+
+    double radius = 0.0;
+    try {
+        radius = std::stod(flags.at("--radius"));
+    } catch (...) {
+        std::cerr << "Error: Invalid radius '" << flags.at("--radius") << "'." << std::endl;
+        return;
+    }
+
+    // Boundary check using Explorer
+    TopExp_Explorer explorer(activeShape, TopAbs_EDGE);
+    int edgeCount = 0;
+    while (explorer.More()) {
+        edgeCount++;
+        explorer.Next();
+    }
+    if (edgeIndex <= 0 || edgeIndex > edgeCount) {
+        std::cerr << "Error: Edge index " << edgeIndex << " is out of bounds. Active solid has " << edgeCount << " edges." << std::endl;
+        return;
+    }
+
+    std::string name = "Fillet" + std::to_string(m_filletCounter++);
+    auto filletFeat = std::make_shared<FilletFeature>(name, edgeIndex, radius);
+
+    // Setup parent
+    auto parent = m_featureTree.GetLastSolidFeature();
+    filletFeat->SetParent(parent);
+
+    // Add and rebuild
+    m_featureTree.AddFeature(filletFeat);
+    if (m_featureTree.Rebuild()) {
+        std::cout << "Solid '" << name << "' generated successfully (Fillet on Edge #" << edgeIndex << " with radius " << radius << "). Active shape updated." << std::endl;
+    } else {
+        std::cerr << "Error: Fillet operation failed. Rolling back feature tree state." << std::endl;
+        m_featureTree.RemoveLastFeature();
+        m_featureTree.Rebuild(); // Revert
+        m_filletCounter--;
+    }
+}
+
+void CLI::HandleChamfer(const std::map<std::string, std::string>& flags) {
+    TopoDS_Shape activeShape = m_featureTree.GetActiveShape();
+    if (activeShape.IsNull()) {
+        std::cerr << "Error: No active solid shape to apply chamfer." << std::endl;
+        return;
+    }
+
+    if (flags.find("--edge") == flags.end()) {
+        std::cerr << "Error: Flag --edge <index> is required." << std::endl;
+        return;
+    }
+
+    if (flags.find("--dist") == flags.end()) {
+        std::cerr << "Error: Flag --dist <val> is required." << std::endl;
+        return;
+    }
+
+    int edgeIndex = 0;
+    try {
+        edgeIndex = std::stoi(flags.at("--edge"));
+    } catch (...) {
+        std::cerr << "Error: Invalid edge index '" << flags.at("--edge") << "'." << std::endl;
+        return;
+    }
+
+    double dist = 0.0;
+    try {
+        dist = std::stod(flags.at("--dist"));
+    } catch (...) {
+        std::cerr << "Error: Invalid distance '" << flags.at("--dist") << "'." << std::endl;
+        return;
+    }
+
+    // Boundary check using Explorer
+    TopExp_Explorer explorer(activeShape, TopAbs_EDGE);
+    int edgeCount = 0;
+    while (explorer.More()) {
+        edgeCount++;
+        explorer.Next();
+    }
+    if (edgeIndex <= 0 || edgeIndex > edgeCount) {
+        std::cerr << "Error: Edge index " << edgeIndex << " is out of bounds. Active solid has " << edgeCount << " edges." << std::endl;
+        return;
+    }
+
+    std::string name = "Chamfer" + std::to_string(m_chamferCounter++);
+    auto chamferFeat = std::make_shared<ChamferFeature>(name, edgeIndex, dist);
+
+    // Setup parent
+    auto parent = m_featureTree.GetLastSolidFeature();
+    chamferFeat->SetParent(parent);
+
+    // Add and rebuild
+    m_featureTree.AddFeature(chamferFeat);
+    if (m_featureTree.Rebuild()) {
+        std::cout << "Solid '" << name << "' generated successfully (Chamfer on Edge #" << edgeIndex << " with distance " << dist << "). Active shape updated." << std::endl;
+    } else {
+        std::cerr << "Error: Chamfer operation failed. Rolling back feature tree state." << std::endl;
+        m_featureTree.RemoveLastFeature();
+        m_featureTree.Rebuild(); // Revert
+        m_chamferCounter--;
     }
 }
