@@ -85,6 +85,7 @@ PYBIND11_MODULE(designer_engine, m) {
         .def("AddFeature", &FeatureTree::AddFeature)
         .def("Rebuild", &FeatureTree::Rebuild)
         .def("GetFeatures", &FeatureTree::GetFeatures)
+        .def("GetActiveShapeEdgeCount", &FeatureTree::GetActiveShapeEdgeCount)
         .def("FindFeature", &FeatureTree::FindFeature)
         .def("GetLastSolidFeature", &FeatureTree::GetLastSolidFeature)
         .def("PrintTree", &FeatureTree::PrintTree)

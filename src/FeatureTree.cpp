@@ -4,6 +4,7 @@
 #include <stdexcept>
 #include <BRepMesh_IncrementalMesh.hxx>
 #include <StlAPI_Writer.hxx>
+#include <TopExp_Explorer.hxx>
 
 void FeatureTree::AddFeature(std::shared_ptr<Feature> feature) {
     m_features.push_back(feature);
@@ -207,5 +208,18 @@ bool FeatureTree::ExportToSTL(const std::string& filename, double deflection) co
         std::cerr << "Exception durante exportacao STL: " << e.what() << std::endl;
         return false;
     }
+}
+
+int FeatureTree::GetActiveShapeEdgeCount() const {
+    if (m_activeShape.IsNull()) {
+        return 0;
+    }
+    TopExp_Explorer explorer(m_activeShape, TopAbs_EDGE);
+    int count = 0;
+    while (explorer.More()) {
+        count++;
+        explorer.Next();
+    }
+    return count;
 }
 

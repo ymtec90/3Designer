@@ -142,6 +142,12 @@ class EngineProxy:
         """
         Adiciona uma FilletFeature (Arredondamento de Aresta) ao sólido ativo.
         """
+        edge_count = self.tree.GetActiveShapeEdgeCount()
+        if edge_count == 0:
+            raise ValueError("Não há sólido ativo disponível para aplicar o arredondamento (Fillet).")
+        if edge_index > edge_count or edge_index <= 0:
+            raise ValueError(f"ID da aresta inválido: {edge_index}. O sólido atual possui apenas {edge_count} arestas.")
+
         fillet = designer_engine.FilletFeature(name, edge_index, radius)
         
         parent = self.tree.GetLastSolidFeature()
@@ -154,6 +160,12 @@ class EngineProxy:
         """
         Adiciona uma ChamferFeature (Chanfro de Aresta) ao sólido ativo.
         """
+        edge_count = self.tree.GetActiveShapeEdgeCount()
+        if edge_count == 0:
+            raise ValueError("Não há sólido ativo disponível para aplicar o chanfro (Chamfer).")
+        if edge_index > edge_count or edge_index <= 0:
+            raise ValueError(f"ID da aresta inválido: {edge_index}. O sólido atual possui apenas {edge_count} arestas.")
+
         chamfer = designer_engine.ChamferFeature(name, edge_index, distance)
         
         parent = self.tree.GetLastSolidFeature()

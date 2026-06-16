@@ -19,6 +19,9 @@ public:
     // Returns the current active solid shape (result of the latest solid modifier)
     TopoDS_Shape GetActiveShape() const { return m_activeShape; }
 
+    // Returns the number of edges in the active solid shape
+    int GetActiveShapeEdgeCount() const;
+
     // Returns the list of all features in the history tree
     const std::vector<std::shared_ptr<Feature>>& GetFeatures() const { return m_features; }
 

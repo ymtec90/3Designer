@@ -306,9 +306,21 @@ class CADApp(QMainWindow):
                     self.viewer.load_stl(self.temp_stl)
                 self.update_feature_list()
             else:
-                QMessageBox.warning(self, "Falha de Rebuild", "A reconstrução paramétrica falhou devido a erros geométricos.")
+                QMessageBox.warning(self, "Falha de Rebuild", "A reconstrução paramétrica falhou devido a erros geométricos. A última operação será desfeita.")
+                self.proxy.tree.RemoveLastFeature()
+                self.proxy.rebuild()
+                if self.proxy.export_to_stl(self.temp_stl, 0.1):
+                    self.viewer.load_stl(self.temp_stl)
+                self.update_feature_list()
         except Exception as e:
-            QMessageBox.critical(self, "Erro no Kernel", f"Exceção disparada pelo Kernel OpenCASCADE:\n\n{e}")
+            QMessageBox.critical(self, "Erro no Kernel", f"Exceção disparada pelo Kernel OpenCASCADE:\n\n{e}\n\nA última operação será desfeita.")
+            try:
+                self.proxy.tree.RemoveLastFeature()
+                self.proxy.rebuild()
+                if self.proxy.export_to_stl(self.temp_stl, 0.1):
+                    self.viewer.load_stl(self.temp_stl)
+            except Exception as rollback_err:
+                print(f"Erro ao desfazer feature: {rollback_err}")
             self.update_feature_list()
 
     def remove_last_feature(self):
@@ -333,11 +345,19 @@ class CADApp(QMainWindow):
         radius = self.spin_value.value()
         
         name = f"Fillet_E{edge_id}"
-        if self.proxy.add_fillet(name, edge_id, radius):
-            self.trigger_rebuild()
-        else:
-            QMessageBox.warning(self, "Falha no Fillet", "Não foi possível aplicar o Fillet. Verifique se o ID da aresta está correto ou se o raio não é muito grande.")
-            self.proxy.remove_last_feature()
+        try:
+            if self.proxy.add_fillet(name, edge_id, radius):
+                self.trigger_rebuild()
+            else:
+                QMessageBox.warning(self, "Falha no Fillet", "Não foi possível aplicar o Fillet. Verifique se o ID da aresta está correto ou se o raio não é muito grande.")
+                self.proxy.remove_last_feature()
+                self.trigger_rebuild()
+        except Exception as e:
+            QMessageBox.critical(self, "Erro Geométrico de Fillet", f"Falha ao aplicar o Fillet:\n\n{e}\n\nA operação será revertida.")
+            try:
+                self.proxy.remove_last_feature()
+            except Exception as rollback_err:
+                print(f"Erro ao reverter feature: {rollback_err}")
             self.trigger_rebuild()
 
     def apply_chamfer(self):
@@ -345,11 +365,19 @@ class CADApp(QMainWindow):
         distance = self.spin_value.value()
         
         name = f"Chamfer_E{edge_id}"
-        if self.proxy.add_chamfer(name, edge_id, distance):
-            self.trigger_rebuild()
-        else:
-            QMessageBox.warning(self, "Falha no Chamfer", "Não foi possível aplicar o Chamfer. Verifique se o ID da aresta está correto ou se a distância não é muito grande.")
-            self.proxy.remove_last_feature()
+        try:
+            if self.proxy.add_chamfer(name, edge_id, distance):
+                self.trigger_rebuild()
+            else:
+                QMessageBox.warning(self, "Falha no Chamfer", "Não foi possível aplicar o Chamfer. Verifique se o ID da aresta está correto ou se a distância não é muito grande.")
+                self.proxy.remove_last_feature()
+                self.trigger_rebuild()
+        except Exception as e:
+            QMessageBox.critical(self, "Erro Geométrico de Chamfer", f"Falha ao aplicar o Chamfer:\n\n{e}\n\nA operação será revertida.")
+            try:
+                self.proxy.remove_last_feature()
+            except Exception as rollback_err:
+                print(f"Erro ao reverter feature: {rollback_err}")
             self.trigger_rebuild()
 
     def export_stl(self):
