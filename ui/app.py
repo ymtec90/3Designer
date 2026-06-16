@@ -1,6 +1,16 @@
 import os
 os.environ['QT_QPA_PLATFORM'] = 'xcb'
 import sys
+
+import OpenGL
+OpenGL.ERROR_CHECKING = False
+OpenGL.ERROR_LOGGING = False
+
+from PySide6.QtGui import QSurfaceFormat
+fmt = QSurfaceFormat()
+fmt.setProfile(QSurfaceFormat.CompatibilityProfile)
+QSurfaceFormat.setDefaultFormat(fmt)
+
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
