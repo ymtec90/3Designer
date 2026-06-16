@@ -2,6 +2,8 @@ import os
 import sys
 import numpy as np
 import pyqtgraph.opengl as gl
+from PySide6.QtCore import Qt, Signal
+from PySide6.QtGui import QVector3D
 
 def read_stl(file_path):
     """
@@ -59,11 +61,19 @@ class ModelViewer(gl.GLViewWidget):
     Widget de visualização 3D herdando do GLViewWidget do PyQtGraph.
     Renderiza malhas de triângulos provenientes de arquivos STL.
     """
+    ruler_changed = Signal(str)
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self.mesh_item = None
         self.opts['distance'] = 25.0  # Distância de visualização padrão
         
+        # Medições (Régua)
+        self.ruler_pt1 = None
+        self.ruler_pt2 = None
+        self.ruler_line = None
+        self.ruler_dots = None
+
         # Adiciona grade de referência no plano XY
         grid = gl.GLGridItem()
         grid.setSize(40, 40)
@@ -76,6 +86,102 @@ class ModelViewer(gl.GLViewWidget):
         axis.setSize(10, 10, 10)
         self.addItem(axis)
 
+    def clear_ruler(self):
+        """Limpa as marcações e referências da régua de medição."""
+        self.ruler_pt1 = None
+        self.ruler_pt2 = None
+        if self.ruler_line is not None:
+            self.removeItem(self.ruler_line)
+            self.ruler_line = None
+        if self.ruler_dots is not None:
+            self.removeItem(self.ruler_dots)
+            self.ruler_dots = None
+
+    def update_ruler_graphics(self):
+        """Desenha ou remove os pontos e a linha de medição conforme o estado da régua."""
+        if self.ruler_line is not None:
+            self.removeItem(self.ruler_line)
+            self.ruler_line = None
+        if self.ruler_dots is not None:
+            self.removeItem(self.ruler_dots)
+            self.ruler_dots = None
+            
+        pts = []
+        if self.ruler_pt1 is not None:
+            pts.append(self.ruler_pt1)
+        if self.ruler_pt2 is not None:
+            pts.append(self.ruler_pt2)
+            
+        if not pts:
+            return
+            
+        # Adiciona marcadores de ponto (vermelhos)
+        self.ruler_dots = gl.GLScatterPlotItem(
+            pos=np.array(pts),
+            color=(0.9, 0.1, 0.1, 1.0),
+            size=10,
+            pxMode=True
+        )
+        self.addItem(self.ruler_dots)
+        
+        # Se temos dois pontos, desenha a linha de conexão (amarela)
+        if len(pts) == 2:
+            self.ruler_line = gl.GLLinePlotItem(
+                pos=np.array(pts),
+                color=(0.9, 0.9, 0.1, 1.0),
+                width=3,
+                antialias=True
+            )
+            self.addItem(self.ruler_line)
+
+    def handle_ruler_selection(self, vertex):
+        """Gerencia a seleção sequencial dos dois pontos e cálculo da distância."""
+        if self.ruler_pt1 is None or (self.ruler_pt1 is not None and self.ruler_pt2 is not None):
+            self.ruler_pt1 = vertex
+            self.ruler_pt2 = None
+            self.update_ruler_graphics()
+            self.ruler_changed.emit(f"Ponto 1: ({vertex[0]:.2f}, {vertex[1]:.2f}, {vertex[2]:.2f}). Selecione o segundo ponto.")
+        else:
+            self.ruler_pt2 = vertex
+            self.update_ruler_graphics()
+            dist = np.linalg.norm(self.ruler_pt1 - self.ruler_pt2)
+            self.ruler_changed.emit(f"Ponto 1: ({self.ruler_pt1[0]:.2f}, {self.ruler_pt1[1]:.2f}, {self.ruler_pt1[2]:.2f}) | Ponto 2: ({vertex[0]:.2f}, {vertex[1]:.2f}, {vertex[2]:.2f}) | Distância: {dist:.3f} mm")
+
+    def mousePressEvent(self, event):
+        """Intercepta o clique do mouse para fazer picking de vértices da malha."""
+        if event.button() == Qt.LeftButton and self.mesh_item is not None:
+            pos = event.pos()
+            mesh_data = self.mesh_item.opts.get('meshdata')
+            if mesh_data is not None:
+                vertices = mesh_data.vertexes()
+                if vertices is not None and len(vertices) > 0:
+                    # Matriz de transformação combinada View * Projection
+                    m = self.projectionMatrix() * self.viewMatrix()
+                    
+                    best_vertex = None
+                    min_dist = float('inf')
+                    
+                    width = self.width()
+                    height = self.height()
+                    
+                    # Projeta os vértices para achar o mais próximo do clique 2D
+                    for v in vertices:
+                        pt = m.map(QVector3D(v[0], v[1], v[2]))
+                        # Converte de NDC [-1, 1] para coordenadas de janela [0, W], [0, H]
+                        sx = (pt.x() + 1) / 2.0 * width
+                        sy = (1 - pt.y()) / 2.0 * height
+                        
+                        dist = np.hypot(sx - pos.x(), sy - pos.y())
+                        if dist < min_dist:
+                            min_dist = dist
+                            best_vertex = v
+                            
+                    # Se clicou a menos de 25 pixels de um vértice real, captura o ponto
+                    if min_dist < 25.0 and best_vertex is not None:
+                        self.handle_ruler_selection(best_vertex)
+                        
+        super().mousePressEvent(event)
+
     def load_stl(self, file_path):
         """
         Lê e renderiza a malha 3D a partir do arquivo STL fornecido.
@@ -85,6 +191,7 @@ class ModelViewer(gl.GLViewWidget):
             return
 
         try:
+            self.clear_ruler()
             vertices, faces = read_stl(file_path)
             
             # Remove a malha anterior se já houver uma renderizada

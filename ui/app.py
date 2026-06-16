@@ -148,6 +148,10 @@ class CADApp(QMainWindow):
         self.viewer = ModelViewer()
         main_layout.addWidget(self.viewer, stretch=1)
 
+        # Configura a barra de status e a conecta à régua de medição
+        self.statusBar().showMessage("Use o clique esquerdo sobre os vértices da malha 3D para medir distâncias.")
+        self.viewer.ruler_changed.connect(self.statusBar().showMessage)
+
     def apply_dark_theme(self):
         self.setStyleSheet("""
             QMainWindow {
